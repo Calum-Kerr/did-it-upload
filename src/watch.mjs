@@ -38,6 +38,8 @@
  * uploads". The difference is the whole reason the report is worded the way it is.
  */
 
+import { deflateSync } from 'node:zlib';
+
 /** A uniquely identifiable string to hunt for in request bodies. */
 export function makeMarker(prefix = 'UPLOAD-CHECK') {
   const random = Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -79,6 +81,88 @@ export function buildTestPdf(marker) {
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
 
   return Buffer.from(pdf, 'latin1');
+}
+
+/**
+ * Build a small but structurally valid PNG carrying the marker, for tools that take images.
+ *
+ * WHY THIS EXISTS. `buildTestPdf` covers PDF tools, which is most of them, but a JPG to PDF converter
+ * never sees a PDF. A marked PNG widens this to every tool that takes a picture, and a picture tool is
+ * where the no-upload claim matters most: the file people convert is often an identity document.
+ *
+ * HOW THE MARKER TRAVELS. It sits in a `tEXt` chunk, which is a legitimate part of the format and
+ * survives any parser. That gives the test two independent signals rather than one:
+ *
+ *   1. If the tool sends the file it was handed, the marker is in the request body and we can read it.
+ *   2. If the tool re-encodes the image before sending it, the marker is gone, but the body is still a
+ *      multipart post carrying a redacted file part, which is the primary signal anyway.
+ *
+ * The second is why an image test is still worth running without the first. Worth saying plainly in any
+ * report: for an image input, detection rests on the file-part signal, because a tool that redraws the
+ * picture and then uploads it would defeat a search for our own bytes.
+ *
+ * The image itself is deliberately simple: a light background with a few dark bars, so it looks like a
+ * document rather than noise, and so any tool that renders a preview has something to render.
+ */
+export function buildTestPng(marker, { width = 96, height = 96 } = {}) {
+  const crcTable = (() => {
+    const table = new Int32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c;
+    }
+    return table;
+  })();
+
+  const crc32 = (buffer) => {
+    let c = -1;
+    for (const byte of buffer) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  };
+
+  const chunk = (type, data) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length, 0);
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body), 0);
+    return Buffer.concat([length, body, crc]);
+  };
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // colour type: truecolour RGB
+  ihdr[10] = 0; // deflate
+  ihdr[11] = 0; // adaptive filtering
+  ihdr[12] = 0; // no interlace
+
+  /* Raw scanlines: one filter byte then RGB triples. Dark bars across a light page. */
+  const raw = Buffer.alloc(height * (1 + width * 3), 245);
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * (1 + width * 3);
+    raw[rowStart] = 0;
+    const inBar = y % 16 < 6;
+    if (!inBar) continue;
+    for (let x = 10; x < width - 10; x++) {
+      const at = rowStart + 1 + x * 3;
+      raw[at] = 30;
+      raw[at + 1] = 30;
+      raw[at + 2] = 30;
+    }
+  }
+
+  const text = Buffer.concat([Buffer.from('Comment\0', 'latin1'), Buffer.from(marker, 'latin1')]);
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('tEXt', text),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
 }
 
 /**

@@ -19,7 +19,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { buildTestPdf, makeMarker, probe } from './watch.mjs';
+import { buildTestPdf, buildTestPng, makeMarker, probe } from './watch.mjs';
 import { runSelfTest } from './selftest.mjs';
 
 const argv = process.argv.slice(2);
@@ -90,10 +90,17 @@ if (!recipe || typeof recipe.act !== 'function') {
   process.exit(2);
 }
 
+/*
+  WHICH FILE TO HAND OVER IS THE RECIPE'S DECISION, NOT OURS. A PDF tool is the common case, and a PDF
+  fixture is the default. A tool that converts pictures never sees a PDF, so its recipe sets
+  `fixture: 'png'` and gets a marked PNG instead. The marker's job is the same in both.
+*/
+const fixture = recipe.fixture === 'png' ? 'png' : 'pdf';
+
 const marker = makeMarker();
 const workDir = await mkdtemp(join(tmpdir(), 'upload-check-'));
-const pdfPath = join(workDir, 'probe.pdf');
-await writeFile(pdfPath, buildTestPdf(marker));
+const probePath = join(workDir, fixture === 'png' ? 'probe.png' : 'probe.pdf');
+await writeFile(probePath, fixture === 'png' ? buildTestPng(marker) : buildTestPdf(marker));
 
 const settleMs = Number(value('settle') ?? 4_000);
 const browser = await chromium.launch({ headless: true });
@@ -120,7 +127,7 @@ const context = await browser.newContext({
 
 let result;
 try {
-  result = await probe(context, { url: target, act: recipe.act, confirm: recipe.confirm }, pdfPath, marker, {
+  result = await probe(context, { url: target, act: recipe.act, confirm: recipe.confirm }, probePath, marker, {
     settleMs,
   });
 } finally {
@@ -163,7 +170,7 @@ if (flag('json')) {
   if (result.confirmEvidence) console.log(`\n  Ran because: ${result.confirmEvidence}`);
   if (result.error) console.log(`\n  Error: ${result.error}`);
   if (result.challengeDetected) console.log(`\n  Page title: ${result.pageTitle}`);
-  console.log(`\n  File used: probe.pdf, containing the marker ${marker}`);
+  console.log(`\n  File used: probe.${fixture}, containing the marker ${marker}`);
   console.log(`  Requests with a body that we saw: ${result.postRequests.length}`);
   for (const request of result.uploads) {
     console.log(
