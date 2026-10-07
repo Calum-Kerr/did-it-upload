@@ -1,0 +1,21 @@
+{
+  "name": "did-it-upload",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Check whether a web tool sends your file anywhere, by watching the network while it runs.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "did-it-upload": "src/check.mjs"
+  },
+  "scripts": {
+    "selftest": "node src/check.mjs --selftest",
+    "check": "node src/check.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}
