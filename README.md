@@ -110,9 +110,18 @@ The instrument is done; what is missing is recipes and fixtures.
 
 ## Sponsoring
 
-This is free, stays free, and has no paid tier. If it saved you from uploading something you should not have,
-the Sponsor button is there. It pays for the time it takes to keep the recipes working, since every site
-redesign breaks one.
+This is free, stays free, and has no paid edition. The Sponsor button exists for one reason: every site this
+drives needs its own small recipe, and every redesign breaks one.
+
+| Tier | What it pays for |
+|---|---|
+| **$3 a month** | Keeping one recipe working. Fixing a broken one means reading somebody else's new markup, and this covers about one a month. |
+| **$25 a month** | The same thing, at the rate that makes sense if you use this in paid work. |
+| **$5 once** | For people who would rather give once than subscribe. Both are genuinely useful. |
+
+**No tier buys anything.** No extra features, no support promise, no say in what gets built or which tools are
+covered. If a tier ever started buying something, that would be the moment this stopped being worth trusting,
+because the entire value of the tool is that its answer does not depend on who is paying.
 
 The tool is maintained alongside [Dialegein](https://dialegein.com), an independent index of PDF tools that
 records where each one processes your files.
