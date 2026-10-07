@@ -123,6 +123,10 @@ drives needs its own small recipe, and every redesign breaks one.
 covered. If a tier ever started buying something, that would be the moment this stopped being worth trusting,
 because the entire value of the tool is that its answer does not depend on who is paying.
 
+**The one-off is on the one-time tab.** GitHub keeps monthly and one-time amounts in two separate lists, so the
+monthly tiers are all you see when the page opens. The $5 option is real and it is one switch away, which is
+worth saying here because GitHub does not say it anywhere.
+
 The tool is maintained alongside [Dialegein](https://dialegein.com), an independent index of PDF tools that
 records where each one processes your files.
 
